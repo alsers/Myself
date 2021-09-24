@@ -1,0 +1,94 @@
+import tensorflow as tf
+import numpy as np
+import matplotlib.pyplot as plt
+import os
+
+from tensorflow.keras.layers import Embedding
+from tensorflow.keras.preprocessing.text import Tokenizer
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+
+'''
+1. Positional Encoding 
+'''
+
+'''
+Positional Encoding visualizations
+'''
+
+def positional_encoding(positions, d):
+    '''
+    预先计算一个包含所有position embedding的矩阵
+
+    变量：
+        positions(int) -- 被编码的位置最大数字
+        d(int) -- 编码长度
+    
+    返回：
+        pos_encoding -- (1, position, d_model)包含位置编码的矩阵
+    '''
+
+    #  initialize a new matrix angle_rads of all the angles
+    angle_rads = np.arange(positions)[:, np.newaxis] / np.power(10000, (2 * (np.arange(d)[np.newaxis, :] // 2)) / np.float32(d))
+    angle_rads[:, 0::2] = np.sin(angle_rads[:, ::2])
+    angle_rads[:, 1::2] = np.cos(angle_rads[:, 1::2])
+    pos_encoding = angle_rads[np.newaxis, ...]
+    return tf.cast(pos_encoding, dtype=tf.float32)
+
+EMBEDDING_DIM = 100
+MAX_SEQUENCE_LENGTH = 100
+MAX_NB_WORDS = 64
+pos_encoding = positional_encoding(MAX_SEQUENCE_LENGTH, EMBEDDING_DIM)
+
+plt.pcolormesh(pos_encoding[0], cmap='RdBu')  # xx,yy此处好像省略了
+plt.xlabel('d')
+plt.xlim((0, EMBEDDING_DIM))
+plt.ylabel('Position')
+plt.colorbar()
+plt.show()
+
+# position encoding matrix 性质1：模为常数
+pos = 34
+tf.norm(pos_encoding[0,pos,:])  # ord=2(default)欧几里得范数，axis=0,按列求平方根和
+                                # ord=1(default)L1范数，axis=0,按列求绝对值和
+# ⬆此处有一个特殊点：在规定了位置后，pos_encoding[0,pos,:]的shape为(100，)所以axis只能为0，用1会报错！！2021.9.14
+
+## position encoding matrix 性质2：像个距离为k的encoding，向量差异也为常数
+pos = 70
+k = 2
+print(tf.norm(pos_encoding[0,pos,:] -  pos_encoding[0,pos + k,:]))
+
+# Positional encoding correlation
+# 计算协方差矩阵，良好的、唯一的位置编码的可视化一定是对称的，并且在相近位置的编码相关度较高
+corr = tf.matmul(pos_encoding, pos_encoding, transpose_b=True).numpy()[0]
+plt.pcolormesh(corr, cmap='RdBu')
+plt.xlabel('Position')
+plt.xlim((0, MAX_SEQUENCE_LENGTH))
+plt.ylabel('Position')
+plt.colorbar()
+plt.show()
+
+# Positional encoding euclidean distance
+eu = np.zeros((MAX_SEQUENCE_LENGTH, MAX_SEQUENCE_LENGTH))
+print(eu.shape)
+for a in range(MAX_SEQUENCE_LENGTH):
+    for b in range(a + 1, MAX_SEQUENCE_LENGTH):
+        eu[a, b] = tf.norm(tf.math.subtract(pos_encoding[0, a], pos_encoding[0, b]))  # tf减法/求模
+        eu[b, a] = eu[a, b]
+        
+plt.pcolormesh(eu, cmap='RdBu')
+plt.xlabel('Position')
+plt.xlim((0, MAX_SEQUENCE_LENGTH))
+plt.ylabel('Position')
+plt.colorbar()
+plt.show()
+
+
+'''
+2 - Semantic embedding
+'''
+'''
+2.1 - Load pretrained embedding
+To combine a pretrained word embedding with the positional encodings you created, 
+start by loading one of the pretrained embeddings from the glove project. 
+You will use the embedding with 100 features.
+'''

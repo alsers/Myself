@@ -1,0 +1,3 @@
+withopen('filepathfilename','commonvalues')asFile1:
+intend file_stuff = File1.read()
+intend print(file_stuff)
